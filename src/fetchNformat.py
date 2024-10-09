@@ -4,12 +4,13 @@ import random
 import os
 from dotenv import load_dotenv
 
-# load environmental variabels
+# load environmental variables
 load_dotenv()
 
 # Ensure the data directory exists
 data_dir = 'data'
 os.makedirs(data_dir, exist_ok=True)
+api_key = '48268bce-0ba6-492f-8597-c04db56622e2'
 
 # Function to fetch match IDs and save them to a JSON file
 def get_match_ids(api_key, filename=f'{data_dir}/match_ids.json'):
@@ -30,11 +31,14 @@ def get_match_ids(api_key, filename=f'{data_dir}/match_ids.json'):
 
 # Helper function to extract match IDs from the API response
 def extract_match_ids(data):
+    TWENTYFIVEMINS = 1500000
     match_ids = []
     for match in data.get('matches', []):
         match_id = match.get('info', {}).get('matchId')
         length_ms = match.get('info', {}).get('lengthMs')
-        if match_id and length_ms and length_ms > 1380000:
+
+        # 25 Minutes is more than the length of a full fortnite game
+        if length_ms > TWENTYFIVEMINS:
             match_ids.append(match_id)
     return match_ids
 
@@ -55,68 +59,47 @@ def get_match_data(api_key, num_matches, input_filename=f'{data_dir}/match_ids.j
     while len(match_data) < num_matches and attempts < max_attempts:
         attempts += 1
         match_id = random.choice(match_ids)
-        match_info = fetch_match_data(api_key, match_id)
-        if match_info:
-            match_data.append(match_info)
-            match_ids.remove(match_id)  # Remove the used ID to avoid duplicate requests
+
+        url = f"https://api.osirion.gg/fortnite/v1/matches/{match_id}/events?include=safeZoneUpdateEvents"
+        headers = {
+            'Authorization': f'Bearer {api_key}'
+        }
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            match_data.append(response.json())
+        else:
+            print(f"Failed to fetch match data for {match_id}. Status code: {response.status_code}")
     
     save_to_json(match_data, output_filename)
     print(f"Match data saved to {output_filename}")
 
-# Helper function to fetch match data for a specific match ID
-def fetch_match_data(api_key, match_id):
-    url = f"https://api.osirion.gg/fortnite/v1/matches/{match_id}/events?include=safeZoneUpdateEvents"
-    headers = {
-        'Authorization': f'Bearer {api_key}'
-    }
-    
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        print(f"Failed to fetch data for match ID {match_id}. Status code: {response.status_code}")
-        return None
-
-# Function to extract zone data from the match data
-def extract_zone_data(match_data, exclude_phases=[]):
+# Function to extract and format zone data for LSTM model usage
+def extract_zone_data(match_data):
     all_zone_data = []
-    excluded_zone_data = []
-    
+    zone_radii = [120000, 95000, 70000, 55000, 32500, 20000, 10000, 5000, 2500, 1650, 1090, 0]
+
+    # Pre-create match_zones template for all matches to avoid redundant creation within the loop
+    match_zones_template = [{'currentPhase': phase, 'zoneRadius': zone_radii[phase - 1]} for phase in range(1, 13)]
+
     for match in match_data:
         safe_zone_events = match.get('safeZoneUpdateEvents', [])
+        match_zones = [dict(zone) for zone in match_zones_template]
         
-        # Collect zone data for each match
-        match_zones = []
-        excluded_zones = []
         for event in safe_zone_events:
-            zone_info = {
-                'currentPhase': event.get('currentPhase'),
-                'previousRadius': event.get('previousRadius'),
-                'nextRadius': event.get('nextRadius'),
-                'previousCenter': event.get('previousCenter')
-            }
-            
-            if event.get('currentPhase') in exclude_phases:
-                excluded_zones.append(zone_info)
-            else:
-                match_zones.append(zone_info)
-        
-        all_zone_data.append({
-            'zones': match_zones
-        })
-        
-        if excluded_zones:
-            excluded_zone_data.append({
-                'matchId': event.get('matchId'),
-                'excludedZones': excluded_zones
-            })
+            current_phase = event.get('currentPhase')
+            next_center = event.get('nextCenter', {})
+  
+            center = {'x': next_center.get('x'), 'y': next_center.get('y')}
+            match_zones[current_phase - 1]['center'] = center
+
+        all_zone_data.append({'zones': match_zones})
     
-    return all_zone_data, excluded_zone_data
+    return all_zone_data
+
 
 # Function to run the entire process
-def run_process(api_key, num_matches_to_fetch, exclude_phases=[], need_matches=True):
+def run_process(api_key, num_matches_to_fetch, need_matches=True):
     # Step 1: Fetch and save match IDs
     if need_matches:
         get_match_ids(api_key)
@@ -129,13 +112,9 @@ def run_process(api_key, num_matches_to_fetch, exclude_phases=[], need_matches=T
         match_data = json.load(file)
 
     # Step 3: Extract and save zone data
-    zone_data, excluded_zone_data = extract_zone_data(match_data, exclude_phases=exclude_phases)
+    zone_data = extract_zone_data(match_data)
     save_to_json(zone_data, f'{data_dir}/extracted_zone_data.json')
-    save_to_json(excluded_zone_data, f'{data_dir}/excluded_zone_data.json')
     print(f"Extracted zone data saved to {data_dir}/extracted_zone_data.json")
-    print(f"Excluded zone data saved to {data_dir}/excluded_zone_data.json")
-
-api_key = os.getenv("OSIRIONKEY")
 
 # Example usage: Run the entire process
-run_process(api_key, num_matches_to_fetch=250, exclude_phases=[8,9,10,11,12], need_matches=False)
+run_process(api_key, num_matches_to_fetch=300, need_matches=False)
