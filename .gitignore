@@ -1,2 +1,9 @@
 # Ignore API Key file
 key.env
+data/match_ids.json
+data/match_data.json
+data/extracted_zone_data.json
+data/dade2dedd74c18e602693c8572653d5a.json
+data/58a8ca6cde44a2b61243318628539dd7.json
+zone_predictor.pth
+aa.py

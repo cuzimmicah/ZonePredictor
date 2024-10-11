@@ -14,7 +14,7 @@ api_key = '48268bce-0ba6-492f-8597-c04db56622e2'
 
 # Function to fetch match IDs and save them to a JSON file
 def get_match_ids(api_key, filename=f'{data_dir}/match_ids.json'):
-    url = "https://api.osirion.gg/fortnite/v1/matches?epicIds=1d6a200529cf49febcfd1f628741f419"
+    url = "https://api.osirion.gg/fortnite/v1/matches?epicIds=256ebe483e954f1fb53cb3f9d4b757aa"
     headers = {
         'Authorization': f'Bearer {api_key}'
     }
@@ -23,9 +23,23 @@ def get_match_ids(api_key, filename=f'{data_dir}/match_ids.json'):
     
     if response.status_code == 200:
         data = response.json()
-        match_ids = extract_match_ids(data)
-        save_to_json(match_ids, filename)
-        print(f"Match IDs saved to {filename}")
+        new_match_ids = extract_match_ids(data)
+        
+        if os.path.exists(filename):
+            with open(filename, 'r') as file:
+                try:
+                    existing_match_ids = json.load(file)
+                except json.JSONDecodeError:
+                    existing_match_ids = []
+        else:
+            existing_match_ids = []
+        
+        combined_match_ids = list(set(existing_match_ids + new_match_ids))
+        
+        with open(filename, 'w') as file:
+            json.dump(combined_match_ids, file, indent=4)
+        
+        print(f"Match IDs appended to {filename}")
     else:
         print(f"Failed to fetch match IDs. Status code: {response.status_code}")
 
@@ -55,6 +69,7 @@ def get_match_data(api_key, num_matches, input_filename=f'{data_dir}/match_ids.j
     match_data = []
     attempts = 0
     max_attempts = num_matches * 2  # Allow some room for failures
+    loops = 0
 
     while len(match_data) < num_matches and attempts < max_attempts:
         attempts += 1
@@ -70,6 +85,8 @@ def get_match_data(api_key, num_matches, input_filename=f'{data_dir}/match_ids.j
             match_data.append(response.json())
         else:
             print(f"Failed to fetch match data for {match_id}. Status code: {response.status_code}")
+        print(loops)
+        loops = loops + 1
     
     save_to_json(match_data, output_filename)
     print(f"Match data saved to {output_filename}")
@@ -117,4 +134,4 @@ def run_process(api_key, num_matches_to_fetch, need_matches=True):
     print(f"Extracted zone data saved to {data_dir}/extracted_zone_data.json")
 
 # Example usage: Run the entire process
-run_process(api_key, num_matches_to_fetch=300, need_matches=False)
+run_process(api_key, num_matches_to_fetch=1000, need_matches=False)

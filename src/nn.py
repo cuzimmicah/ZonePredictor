@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Dataset
 import json
 
 class ZonePredictorLSTM(nn.Module):
-    def __init__(self, input_dim=2, hidden_dim=128, num_layers=3, output_dim=2):
+    def __init__(self, input_dim=2, hidden_dim=128, num_layers=5, output_dim=2):
         super(ZonePredictorLSTM, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
@@ -20,7 +20,7 @@ class ZonePredictorLSTM(nn.Module):
         out = self.fc(out)
         return out
 
-def create_zone_predictor_for_phase(phase_number, input_dim=2, hidden_dim=128, num_layers=3):
+def create_zone_predictor_for_phase(phase_number, input_dim=2, hidden_dim=128, num_layers=4):
     return ZonePredictorLSTM(input_dim, hidden_dim, num_layers)
 
 class ZoneDataset(Dataset):
@@ -41,7 +41,7 @@ class ZoneDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
 
-def train_and_save_model(file_path, phase_to_predict, num_epochs=10000, learning_rate=0.00001, model_save_path='zone_predictor.pth'):
+def train_and_save_model(file_path, phase_to_predict, num_epochs=250, learning_rate=0.0025, model_save_path='zone_predictor.pth'):
     with open(file_path, 'r') as f:
         data = json.load(f)
         

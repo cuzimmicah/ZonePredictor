@@ -1,6 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 from nn import create_zone_predictor_for_phase
+import numpy as np
 
 def load_model(model_path, phase_to_predict):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -11,7 +12,6 @@ def load_model(model_path, phase_to_predict):
 
 def predict_next_zone(model, zone_centers):
     device = next(model.parameters()).device
-    # Normalize input by dividing by 100 to bring the values to meters
     normalized_centers = [(x / 100, y / 100) for x, y in zone_centers]
     input_tensor = torch.tensor(normalized_centers, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
@@ -20,9 +20,9 @@ def predict_next_zone(model, zone_centers):
     return prediction[0][0] * 100, prediction[0][1] * 100
 
 def plot_zones_and_prediction(zone_centers, predicted_center, radii, actual_center=None):
-    x_coords = [zone_centers[-1][0] / 100]  # Only Zone 5 center
-    y_coords = [zone_centers[-1][1] / 100]  # Only Zone 5 center
-    scaled_radii = [r / 100 for r in radii]  # Scaled radii for all zones
+    x_coords = [zone_centers[-1][0] / 100] 
+    y_coords = [zone_centers[-1][1] / 100]
+    scaled_radii = [r / 100 for r in radii] 
 
     plt.figure(figsize=(10, 10))
     
@@ -45,6 +45,11 @@ def plot_zones_and_prediction(zone_centers, predicted_center, radii, actual_cent
         actual_x, actual_y = actual_center[0] / 100, actual_center[1] / 100
         plt.scatter(actual_x, actual_y, color='b', s=100, label='Actual Zone 6 Center')
         plt.gca().add_patch(plt.Circle((actual_x, actual_y), scaled_radii[5], color='b', fill=False, linewidth=1.5))
+
+    distance = ((actual_center[0]/100 - predicted_center[0]) **2 + (actual_center[1]/100 - predicted_center[1]) **2 )**1/2 / 100
+    
+    # Annotating the distance on the plot
+    plt.text(predicted_center[0] + 50, predicted_center[1] + 50, f'Distance: {distance:.2f}', fontsize=10, color='blue')
     
     plt.xlabel('X Coordinate (meters)')
     plt.ylabel('Y Coordinate (meters)')
@@ -58,18 +63,18 @@ def plot_zones_and_prediction(zone_centers, predicted_center, radii, actual_cent
 
 def main():
     model_path = 'zone_predictor.pth'
-    phase_to_predict = 6
+    phase_to_predict = 5
     zone_centers = [
-        (-16452.34, 15451.76),
-        ( -38919.49, 13553.98),
-        (-25118.11, 2703.37),
-        (-37567.22,  10131.76),
-        (-46705.94, 28370.2)
+        (-15545.72,  25487.21)
+        ,(-28396.04,46609.16)
+        ,(-44584.36,64780.19)
+        ,(-53584.49, 75767.6)
+        ,(-49816.06, 91025.5)
     ]
 
     radii = [120000, 95000, 70000, 55000, 32500, 20000]
 
-    actual_center = (-79004.12, 24753.94)
+    actual_center = (-31033.96, 117548.74)
 
     model = load_model(model_path, phase_to_predict)
     predicted_center = predict_next_zone(model, zone_centers)
