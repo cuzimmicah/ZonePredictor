@@ -65,16 +65,16 @@ def main():
     model_path = 'zone_predictor.pth'
     phase_to_predict = 5
     zone_centers = [
-        (-15545.72,  25487.21)
-        ,(-28396.04,46609.16)
-        ,(-44584.36,64780.19)
-        ,(-53584.49, 75767.6)
-        ,(-49816.06, 91025.5)
+        (-15767.98, 25475.69)
+        ,(-28040.83,47226.56)
+        ,(-44556.85,65588.2)
+        ,(-47991.61, 78938.06)
+        ,(-54808.48, 96730.3)
     ]
 
     radii = [120000, 95000, 70000, 55000, 32500, 20000]
 
-    actual_center = (-31033.96, 117548.74)
+    actual_center = (-65009.89, 65872.87)
 
     model = load_model(model_path, phase_to_predict)
     predicted_center = predict_next_zone(model, zone_centers)
